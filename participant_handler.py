@@ -25,16 +25,36 @@ class Operations:
                 }
         return aggregated_stats
 
-class Participant(Operations):
+class Participant:
     def __init__(self, directory):
         self.directory = directory
         self.column_categories = column_categories
         self.process_directory()
         self.compute_all_aggregated_statistics()
 
-    def _filter_columns(self, df, column_categories=column_categories):
-        filtered_columns = [col for col in df.columns if any(category in col for category in self.column_categories)]
-        return df[filtered_columns]
+    def compute_aggregated_statistics(self, df, categories=column_categories):
+        aggregated_stats = {}
+        for category in categories:
+            # Combine all columns that match the brain wave category into a single series
+            category_columns = [col for col in df.columns if col.split('.')[-1] == category]
+            combined_data = df[category_columns].dropna().values.flatten()
+            if len(combined_data) > 0:
+                aggregated_stats[category] = {
+                    'Average': np.mean(combined_data),
+                    'Standard Deviation': np.std(combined_data),
+                    'Min': np.min(combined_data),
+                    'Max': np.max(combined_data),
+                    'Number of Local Mins': len((np.diff(np.sign(np.diff(combined_data))) > 0).nonzero()[0]),
+                    'Number of Local Maxes': len((np.diff(np.sign(np.diff(combined_data))) < 0).nonzero()[0])
+                }
+        return aggregated_stats
+
+    def _filter_columns(self, df, filter=None):
+        if filter:
+            filtered_columns = [col for col in df.columns if any(category in col for category in filter)]
+            return df[filtered_columns]
+        else:
+            return df
 
     def create_data_frame(self, file, filter=None):
         file_path = os.path.join(self.directory, file)
@@ -42,6 +62,7 @@ class Participant(Operations):
         if filter:
             df = self._filter_columns(df, filter)
         df = df.dropna()
+
         return df
 
     def process_directory(self):
@@ -143,6 +164,6 @@ class Participant(Operations):
 if __name__ == "__main__":
     participant1 = Participant(r'103918\split')
     # print(participant1.angry_pow_df)
-    print(participant1.angry_pow_df_stats)
+    print(participant1.sad_raw_eeg_df)
     # Example of accessing the average of Theta for angry_pow_df
     # print(participant1.angry_pow_df_stats['Theta']['Average'])
